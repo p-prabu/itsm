@@ -7,7 +7,7 @@
 ## Table of Contents
 
 1. [What this app is for](#what-this-app-is-for)
-2. [Incident vs. Service Request — when to use which](#incident-vs-service-request--when-to-use-which)
+2. [Which ticket type should I use?](#which-ticket-type-should-i-use)
 3. [Getting started](#getting-started)
 4. [Raising an incident](#raising-an-incident)
 5. [Submitting a service request](#submitting-a-service-request)
@@ -28,24 +28,32 @@
 
 ## What this app is for
 
-ITSM Register gives you two simple registers that follow the **ITIL** way of tracking IT work:
+ITSM Register gives you four lightweight registers that follow the **ITIL** way of tracking IT work:
 
 - An **Incident Register** for when something is broken or not working the way it should.
-- A **Service Request Register** for when you want something new.
+- A **Service Request Register** for when someone needs something new or changed as a standard service.
+- A **Problem Register** for root-cause investigation of recurring or high-impact issues.
+- A **Change Register** for planned modifications that need approval, scheduling, implementation, and review.
 
-Each ticket has the fields an ITIL-aligned team would expect — Impact, Urgency, Priority, Status, Assignee, Resolution, Work Notes — but it's all in one HTML file that runs in your browser. No login, no server, no subscription.
+Each ticket has the fields an ITIL-aligned team would expect — Impact, Urgency, Priority, Status, Assignee, SLA targets, evidence links, linked tickets, work notes, and activity history — but it still runs entirely in your browser. No login, no server, no subscription.
 
 ---
 
-## Incident vs. Service Request — when to use which
+## Which ticket type should I use?
 
-The most common mistake in ITSM tools is logging everything as an incident. Use this simple test:
+Use this simple test:
 
 > **Was it working before, and now it isn't?**
-> → **Incident** (something is broken — restore the service)
+> → **Incident**
 >
-> **Is this a request for something new or different?**
-> → **Service Request** (standard service delivery — fulfil the request)
+> **Is this a request for something new, different, or approved as a standard service?**
+> → **Service Request**
+>
+> **Are you investigating the underlying cause behind repeated or significant incidents?**
+> → **Problem**
+>
+> **Are you planning to implement a controlled change to infrastructure, software, access, or service configuration?**
+> → **Change**
 
 ### Examples
 
@@ -57,14 +65,19 @@ The most common mistake in ITSM tools is logging everything as an incident. Use 
 | I'd like access to the Finance SharePoint site. | Service Request | I never had access; I'm asking for new entitlement. |
 | Outlook keeps crashing every time I open a meeting. | Incident | Outlook should work; it's failing. |
 | Please install Visio on my laptop. | Service Request | I'm asking for new software. |
+| We have had six VPN incidents this week and need to find the common cause. | Problem | This is root-cause analysis across related incidents. |
+| We need to patch the VPN concentrator during Saturday maintenance. | Change | This is a planned modification with approval and scheduling. |
 | The printer on Floor 3 is jammed. | Incident | A service (that printer) is not working. |
 | Can we add a new printer on Floor 5? | Service Request | Net-new capability. |
 | VPN keeps dropping every 10 minutes. | Incident | VPN is meant to stay connected. |
 | Please set up VPN for our new contractor. | Service Request | New provisioning. |
 
-If you're not sure, ask: *"What would 'done' look like?"*
-If done = **service restored**, it's an incident.
-If done = **new thing delivered**, it's a request.
+If you're not sure, ask: *"What does done look like?"*
+
+- If done = **service restored**, it's an incident.
+- If done = **new thing delivered**, it's a request.
+- If done = **root cause understood and documented**, it's a problem.
+- If done = **planned change implemented and reviewed**, it's a change.
 
 ---
 
@@ -80,7 +93,7 @@ You'll land on the **Dashboard** with some sample tickets loaded so you can see 
 
 No account to create. No password. Just use it.
 
-> **One-time bookmark.** Add the site to your bookmarks bar so it's one click away. On first load your browser will cache React, Babel, and the DM Sans font — so subsequent loads are fast and work even if you briefly lose internet.
+> **One-time bookmark.** Add the site to your bookmarks bar so it's one click away. On first load your browser will cache React, Babel, and the UI fonts — so subsequent loads are fast and work even if you briefly lose internet.
 
 > **One browser = one dataset.** Your tickets live in *this browser's* storage. If you open the same URL in Incognito, or on a different computer, you'll see a separate (empty) register. Use *Settings → Export JSON* to move your data between devices.
 
@@ -106,6 +119,8 @@ No account to create. No password. Just use it.
 
 3. Click **Raise Incident**. A ticket number like `INC00001` is assigned automatically and the ticket appears in the Incidents register.
 
+The app also calculates **response due** and **resolution due** targets from the ticket priority. If needed, these can be manually adjusted later in the drawer.
+
 ---
 
 ## Submitting a service request
@@ -122,6 +137,60 @@ No account to create. No password. Just use it.
 3. Click **Submit Request**. A ticket number like `REQ00001` is assigned.
 
 New requests usually start at **New** and move to **Pending Approval** once they reach someone who can approve.
+
+---
+
+## Raising a problem
+
+1. Click **+ New Problem** in the sidebar or press `P`.
+2. Fill in the core fields like title, description, service, impact, urgency, and assignment.
+3. Use **Linked Tickets** to connect the problem to related incidents or requests such as `INC00012`.
+4. As the investigation progresses, capture:
+
+| Field | What to put here |
+|---|---|
+| **Root Cause** | The technical or process cause behind the repeated issue. |
+| **Workaround** | A temporary way to reduce impact until the permanent fix is ready. |
+| **Known Error** | The documented known-error statement or vendor reference. |
+| **Resolution** | The permanent corrective action once the problem is solved. |
+
+Typical flow:
+- **New** when the investigation is opened
+- **Under Investigation** while analysis is in progress
+- **Root Cause Identified** once the cause is known
+- **Known Error** if a workaround or known-error record is established
+- **Resolved** when the permanent fix is delivered
+- **Closed** when the investigation is complete
+
+The app will stop you from moving to certain statuses without the required fields. For example, you cannot mark a problem as **Root Cause Identified** without entering the root cause.
+
+---
+
+## Raising a change request
+
+1. Click **+ New Change** in the sidebar or press `C`.
+2. Enter the business reason, service, impact, urgency, assignee, and approver.
+3. Fill in the delivery controls:
+
+| Field | What to put here |
+|---|---|
+| **Change Type** | Standard, Normal, or Emergency. |
+| **Reason** | Why the change is needed. |
+| **Implementation Plan** | Step-by-step plan for carrying out the change. |
+| **Test Plan** | How you will validate success. |
+| **Backout Plan** | How to reverse the change if it fails. |
+| **Linked Tickets** | Related incidents, problems, or requests such as `PRB00003` or `INC00012`. |
+
+Typical flow:
+- **Draft** while the change is being prepared
+- **Pending Approval** while sign-off is awaited
+- **Approved** once authorized
+- **Scheduled** once the execution window is agreed
+- **Implementation** during execution
+- **Review** after implementation checks
+- **Completed** once the change is successfully finished
+
+Rejected and cancelled changes require confirmation. Completed changes also preserve the implementation history in the audit log.
 
 ---
 
@@ -193,18 +262,54 @@ The matrix:
 - **Rejected** — Approver said no, or doesn't meet policy.
 - **Closed** — Confirmed done and archived.
 
+### Problems
+
+```
+  New ──► Under Investigation ──► Root Cause Identified ──► Known Error ──► Resolved ──► Closed
+                                   │
+                                   └──► On Hold
+```
+
+- **New** — Investigation is opened.
+- **Under Investigation** — Analysis is underway.
+- **Root Cause Identified** — The underlying cause is known.
+- **Known Error** — Workaround and known-error statement are documented.
+- **On Hold** — Waiting on vendor input, logs, maintenance, or another dependency.
+- **Resolved** — Permanent corrective action is implemented.
+- **Closed** — Investigation is complete and records are finalized.
+
+### Changes
+
+```
+  Draft ──► Pending Approval ──► Approved ──► Scheduled ──► Implementation ──► Review ──► Completed
+      │               │
+      └───────────────┴──► Rejected / Cancelled
+```
+
+- **Draft** — Change is being prepared.
+- **Pending Approval** — Waiting for sign-off.
+- **Approved** — Authorized to proceed.
+- **Scheduled** — Planned into a maintenance window.
+- **Implementation** — Work is actively being carried out.
+- **Review** — Post-change verification and review.
+- **Completed** — Work finished successfully.
+- **Rejected / Cancelled** — Not going ahead.
+
 ---
 
 ## Working a ticket
 
-Click any ticket in the Incidents or Service Requests table to open the drawer.
+Click any ticket in any register to open the drawer.
 
 You can:
 
 - **Update any field** — changes save when you click Save Changes.
-- **Add work notes** — a timestamped journal entry showing what you did, who you spoke to, what you tried. The most valuable field in the whole app when you come back to a ticket three weeks later.
-- **Change status** — when you mark as Resolved / Fulfilled / Closed, the timestamp is captured automatically.
-- **Fill in Resolution / Fulfillment notes** — what actually fixed it / what was delivered. Future-you will thank present-you.
+- **Add work notes** — a timestamped journal entry showing what you did, who you spoke to, what you tried.
+- **Change status** — milestone timestamps are captured automatically, and reopening a ticket clears stale terminal dates.
+- **Manage linked tickets** — store lightweight references such as `INC00012`, `PRB00003`, or `CHG00007`.
+- **Add evidence links** — attach URLs or reference text for documents, screenshots, vendor advisories, or approvals.
+- **Review activity history** — status changes, assignment updates, SLA edits, evidence changes, and reopen events are logged automatically.
+- **Fill in Resolution / Fulfillment / Implementation fields** — capture what actually fixed it, delivered it, or changed it.
 - **Delete** the ticket — permanent, no undo. Use with care; usually you want Cancelled or Closed instead.
 
 ---
@@ -213,9 +318,10 @@ You can:
 
 The Dashboard gives you a one-glance status of your queue:
 
-- **Five KPI tiles** — Open Incidents, Open Requests, Resolved Incidents, Fulfilled Requests, Total Tickets.
-- **Priority bars** — How many open tickets sit at each priority (P1 through P4). A healthy queue has few P1s and P2s; a bar full of red is a signal to escalate.
-- **Recent Activity** — The 10 most recently updated tickets across both registers. Click any row to open.
+- **KPI tiles** for open incidents, open requests, open problems, open changes, and tickets awaiting approval.
+- **Priority bars** showing how many open tickets sit at each priority.
+- **Recent Activity** across all four registers.
+- **Queue intelligence** around breached tickets, scheduled changes, and ownership discipline.
 
 Click a KPI tile to jump to its register.
 
@@ -228,7 +334,9 @@ Each register table has:
 - **Search box** — searches title, ticket number, description, assignee, and reporter/requester. Fast and forgiving.
 - **Status filter** — narrow to a single status (e.g. *In Progress*).
 - **Priority filter** — narrow to P1 only, etc.
-- **Click any column header** — sort by that column. Click again to reverse the direction.
+- **Breach filter** — switch between All, On Track, Due Soon, and Breached.
+- **Saved views** — store common queue slices for each register.
+- **Preset views** — examples include My Open, Breached, Unassigned, Awaiting Approval, Scheduled, and On Hold > 3 Days.
 
 The filter row is sticky while you scroll the table.
 
@@ -240,21 +348,37 @@ The filter row is sticky while you scroll the table.
 
 Three themes: **Light**, **Dark**, **Soft Dark**. Pick whichever is easier on your eyes. The setting persists.
 
+### Team defaults
+
+- **Operator name** — used for work notes, activity entries, and "My Open" filtering.
+- **Assignment groups** — maintain the team list used in tickets.
+- **Services catalog** — maintain the service list shown in ticket forms.
+
+### SLA policy
+
+For each priority `P1` to `P4`, you can configure:
+
+- **Response hours**
+- **Resolution hours**
+
+New tickets inherit these targets automatically. If a particular ticket needs an exception, its due dates can be overridden in the drawer.
+
 ### Data — Export / Import
 
 - **Export JSON** — downloads a file `itsm-register-YYYY-MM-DD.json` with everything.
+- **Export CSV** — downloads a flat reporting snapshot for spreadsheet work.
 - **Import (Replace)** — load a JSON file and overwrite everything currently in the browser. Prompts for confirmation.
 - **Import (Merge)** — load a JSON file and add only records that aren't already here. Good for combining two people's data.
 - **Load sample data** — wipes current data and loads the built-in demo set. Useful for demos or training.
 - **Clear all data** — wipes everything. Double-confirms.
 
-### Services Catalog
+### Saved views and ITIL reference
 
-The **Affected Service** dropdown on each ticket is editable here. Add services your org uses (e.g. "Salesforce", "Okta", "Confluence") and remove ones you don't. Deleting a service that's referenced by existing tickets doesn't delete those tickets — they'll just show the service name as a text value.
+Settings also keeps:
 
-### ITIL Quick Reference
-
-A short primer right inside Settings so you don't have to keep this guide open.
+- your saved queue views
+- an embedded ITIL quick reference
+- all counters and policy settings carried in JSON export/import
 
 ---
 
@@ -268,7 +392,7 @@ Your data lives in your browser's `localStorage`. That's robust for day-to-day u
 - For a small team — export daily.
 - Keep the JSON files somewhere safe — OneDrive, Google Drive, a folder in Dropbox, Git, wherever.
 
-The exported JSON is plain text, very small, and imports perfectly back.
+The exported JSON preserves incidents, requests, problems, changes, SLA targets, saved views, evidence links, linked tickets, and activity history.
 
 ---
 
@@ -293,9 +417,13 @@ If you need more than 3–5 people editing in real time, you've outgrown a singl
 |---|---|
 | `I` | Raise a new incident |
 | `R` | Submit a new service request |
+| `P` | Raise a new problem |
+| `C` | Raise a new change request |
 | `1` | Go to Dashboard |
 | `2` | Go to Incidents |
 | `3` | Go to Service Requests |
+| `4` | Go to Problems |
+| `5` | Go to Changes |
 | `Esc` | Close the ticket drawer |
 | `Enter` (in work notes box) | Add the work note |
 
@@ -311,6 +439,8 @@ Shortcuts are off while you're typing in any input, so normal typing still works
 - **Reassign rather than reopen.** If the first person can't solve it, change the Assignee — don't create a new ticket.
 - **Use Cancelled for duplicates** instead of deleting. Keeps your audit trail intact.
 - **Resolved ≠ Closed.** Resolved means *the fix is applied*; Closed means *the user has confirmed it's good*. Keep them separate.
+- **Use Problems for recurring incidents.** If you keep solving the symptom, open a problem and link the incidents.
+- **Use Changes for planned risk.** If work needs approval, test planning, or rollback thinking, it should be a change.
 - **Priority is not negotiable by mood.** Set Impact and Urgency honestly; let the matrix do its job.
 - **Export before any risky action** — changing browsers, clearing cache, installing extensions, updating OS.
 
@@ -325,7 +455,7 @@ Shortcuts are off while you're typing in any input, so normal typing still works
 Browsers treat each file path as its own origin. Move the file back to the original folder, or export from one location and import in the other.
 
 **Import says "not a valid ITSM export".**
-The JSON needs to have `incidents` and `requests` arrays. Open the file in a text editor and confirm the structure. If it's from an older version (e.g. just the array, no wrapper), wrap it manually.
+The JSON needs to contain the exported state wrapper with ticket arrays and settings. Older exports still import, but badly edited files may not.
 
 **The app won't load — just a blank page.**
 Most likely one of:
@@ -337,7 +467,7 @@ Most likely one of:
 You're probably on an old browser. Open in Chrome, Edge, Firefox, or Safari (recent versions).
 
 **Two people's data got mixed up.**
-Use Import (Replace) to overwrite with a known-good export, or Import (Merge) to combine two exports. If things are really tangled, export what's there, open the JSON in a text editor, clean it up, then re-import.
+Use Import (Replace) to overwrite with a known-good export, or Import (Merge) to combine two exports. Merge keeps the highest ticket counters so new `INC`, `REQ`, `PRB`, and `CHG` numbers stay unique.
 
 ---
 
@@ -349,15 +479,18 @@ Use Import (Replace) to overwrite with a known-good export, or Import (Merge) to
 | **ITSM** | Information Technology Service Management — the discipline ITIL codifies. |
 | **Incident** | An unplanned interruption to a service. |
 | **Service Request** | A formal request for something new — access, hardware, software, info. |
+| **Problem** | The record used to investigate and document the underlying cause of one or more incidents. |
+| **Change** | A planned modification that is reviewed, approved, scheduled, implemented, and checked. |
 | **Impact** | How broadly something is felt (how many people, how critical the process). |
 | **Urgency** | How quickly a fix or delivery is needed. |
 | **Priority** | The resulting work order derived from Impact × Urgency. |
-| **SLA** | Service Level Agreement — the promised response / resolution time. Not tracked in this app; tracked in enterprise ITSM tools. |
+| **SLA** | Service Level Agreement — the promised response / resolution time. This app tracks target dates and breach state locally. |
 | **CI** | Configuration Item — a service or asset being managed. In this app, the Services Catalog is a flat CI list. |
-| **Work Notes** | The running log of what has been done on a ticket. The audit trail. |
+| **Work Notes** | The running journal of what has been done on a ticket. |
+| **Activity Log** | The automatic history of status, SLA, assignment, evidence, and linked-ticket changes. |
 | **Resolution** | The final answer on an incident — what fixed it. |
 | **Fulfillment** | The final answer on a service request — what was delivered. |
 
 ---
 
-*Questions, ideas, or bugs? The code lives in `index.html` — open it in any editor and tinker. The entire app is one file, ~900 lines, and uses React from a CDN so you don't need a build step.*
+*Questions, ideas, or bugs? The code lives mainly in `app.jsx`, with `styles.css` and `index.html` supporting it. Open the files in any editor and tinker.*

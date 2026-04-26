@@ -1,6 +1,6 @@
 # ITSM Register — Technical Documentation
 
-> A self-contained, offline-first ITIL-aligned register for Incidents and Service Requests.
+> A self-contained, offline-first ITIL-aligned register for Incidents, Service Requests, Problems, and Changes.
 > Source is split into HTML / CSS / JSX for easy customisation. Data stays in your browser — no backend.
 
 ---
@@ -30,10 +30,12 @@
 
 ITSM Register is a **client-side web application** built from three source files — `index.html`, `styles.css`, and `app.jsx`. There is no backend, no database server, no cloud dependency, and no build step required. Babel Standalone transpiles JSX in the browser at runtime.
 
-It is designed for small IT teams (or individuals) to capture and track two kinds of records aligned with the ITIL framework:
+It is designed for small IT teams (or individuals) to capture and track four kinds of records aligned with the ITIL framework:
 
 - **Incidents** — unplanned interruptions to an existing service, raised when something that was working has stopped working.
 - **Service Requests** — formal user requests for something new, raised when asking for access, hardware, software, or information that isn't currently provisioned.
+- **Problems** — root-cause investigations used to track recurring or high-impact underlying issues behind one or more incidents.
+- **Changes** — controlled requests to implement planned modifications to infrastructure, applications, access, or services.
 
 **Key design principles:**
 - Zero dependencies to install — React, ReactDOM, and Babel load from CDN
@@ -45,27 +47,31 @@ It is designed for small IT teams (or individuals) to capture and track two kind
 
 ## ITIL Alignment
 
-The app implements the core ITIL 4 distinction between the two most common ticket types. The field set and status flow have been chosen to match what most ITIL-aligned tools (ServiceNow, Jira Service Management, BMC Helix) use out of the box.
+The app implements the core ITIL 4 distinction across four practical ticket types. The field sets and status flows are chosen to match the lightweight operational patterns most ITIL-aligned tools use out of the box.
 
 | Concept | ITSM Register implementation |
 |---|---|
 | Incident | `type: "incident"` record with auto-numbered ID `INC00001`... |
 | Service Request | `type: "request"` record with auto-numbered ID `REQ00001`... |
+| Problem | `type: "problem"` record with auto-numbered ID `PRB00001`... |
+| Change | `type: "change"` record with auto-numbered ID `CHG00001`... |
 | Impact | Three levels — High / Medium / Low |
 | Urgency | Three levels — High / Medium / Low |
 | Priority | Auto-derived from a 3×3 Impact × Urgency matrix, P1–P4 |
 | Incident status flow | New → Assigned → In Progress → On Hold → Resolved → Closed (plus Cancelled) |
 | Request status flow | New → Pending Approval → Approved → In Progress → On Hold → Fulfilled → Closed (plus Rejected) |
-| Work Notes | Timestamped activity trail added to each ticket |
-| Resolution / Fulfillment | Free-text field captured before closure |
-| Categories | Incident: Hardware, Software, Network, Access, Security, Email, Performance, Data, Facilities, Other. Request: Access, New Hardware, New Software, Software Licence, Information, Configuration Change, New Employee Setup, Other. |
+| Work Notes | Timestamped operator notes added to each ticket |
+| Activity Log | Automatic history for status, assignment, SLA, evidence, and ticket-link changes |
+| Resolution / Fulfillment / Change plans | Free-text fields captured as workflow guardrails require |
+| Categories | Incident, Request, Problem, and Change each have dedicated category lists in `app.jsx`. |
 | Services (CI list) | User-editable list in Settings |
+| Ticket relationships | Manual linked ticket references by ticket number (e.g. `INC00012`, `PRB00003`) |
 
 What's intentionally **not** included (out of scope for a lightweight single-file tool):
-- Problem / Change / Knowledge / Release processes
+- Knowledge / Release processes
 - CMDB beyond the flat services list
-- SLA clocks or automated escalation
-- Approval workflows (Approver is captured as free text only)
+- SLA clocks or automated escalation beyond local target/breach indicators
+- Full CAB / approval engine automation
 - Role-based access control
 
 ---
@@ -76,9 +82,9 @@ What's intentionally **not** included (out of scope for a lightweight single-fil
 |---|---|---|---|
 | UI Framework | React | 18 (UMD) | Component-based UI rendering |
 | JSX Transpiler | Babel Standalone | Latest | Transpiles JSX in the browser at runtime |
-| Styling | Inline CSS-in-JS | — | Theme-aware styles via JavaScript objects |
-| Global CSS | `<style>` block | — | Animations, drawer, date picker, scrollbars |
-| Fonts | Google Fonts (DM Sans) | — | Loaded from CDN on first use |
+| Styling | React inline styles + CSS variables | — | Theme-aware surfaces with shared typography classes |
+| Global CSS | `styles.css` | — | Layout, effects, table styling, drawer, futuristic theme |
+| Fonts | Google Fonts (Orbitron, Space Grotesk, JetBrains Mono) | — | Display, UI, and data typography roles |
 | Storage | `localStorage` | Browser native | Persistent data storage, no server needed |
 | Data Interchange | JSON | — | Export / Import for backup and portability |
 
@@ -105,7 +111,7 @@ ITSM/
 │   ├── Input / Select /  — themed form primitives
 │   │   Textarea / Btn
 │   ├── Drawer            — slide-in form for create/edit
-│   ├── Register          — table view with search, filter, sort (both types)
+│   ├── Register          — table view with search, preset filters, saved views, SLA state
 │   ├── Dashboard         — KPI stats, priority bars, recent activity
 │   ├── Settings          — theme, services catalog, import/export, clear/reset
 │   └── App               — Main app: sidebar, view router, shortcuts
@@ -131,7 +137,20 @@ State shape:
 {
   incidents: Incident[],
   requests:  ServiceRequest[],
-  settings:  { theme, services, incCounter, reqCounter }
+  problems:  Problem[],
+  changes:   Change[],
+  settings:  {
+    theme,
+    services,
+    assignmentGroups,
+    operatorName,
+    incCounter,
+    reqCounter,
+    prbCounter,
+    chgCounter,
+    slaPolicy,
+    savedViews
+  }
 }
 ```
 
@@ -144,10 +163,10 @@ State is persisted on every change via a `useEffect` that writes to `localStorag
 All data is stored in **browser `localStorage`** under a single key:
 
 ```
-itsm-register-v1
+itsm-register-v3
 ```
 
-The value is a JSON string containing the full app state (incidents, requests, and settings). Every state mutation triggers a re-serialization to `localStorage`, so data is durable across browser restarts.
+The value is a JSON string containing the full app state (incidents, requests, problems, changes, and settings). Every state mutation triggers a re-serialization to `localStorage`, so data is durable across browser restarts.
 
 **Storage characteristics:**
 - Per-origin, per-browser (Chrome and Firefox have separate stores for the same file)
@@ -161,30 +180,51 @@ The value is a JSON string containing the full app state (incidents, requests, a
 
 ## Data Schema
 
+### Shared operational fields
+
+All four ticket types share:
+
+```js
+{
+  id:               string,
+  ticketNo:         string,
+  type:             "incident" | "request" | "problem" | "change",
+  title:            string,
+  description:      string,
+  category:         string,
+  service:          string,
+  impact:           "High" | "Medium" | "Low",
+  urgency:          "High" | "Medium" | "Low",
+  priority:         "P1" | "P2" | "P3" | "P4",
+  status:           string,
+  assignee:         string,
+  assignmentGroup:  string,
+  pendingReason:    string,
+  dueDatesManual:   boolean,
+  responseDueAt:    ISO 8601 string,
+  resolutionDueAt:  ISO 8601 string,
+  assignedAt:       ISO 8601 string | null,
+  lastWorkedAt:     ISO 8601 string | null,
+  createdAt:        ISO 8601 string,
+  updatedAt:        ISO 8601 string,
+  closedAt:         ISO 8601 string | null,
+  linkedTickets:    string[],
+  evidence:         { id: string, label: string, url: string, reference: string }[],
+  workNotes:        { at: ISO string, by: string, note: string }[],
+  activityLog:      { id: string, at: ISO string, action: string, note: string, meta: object }[]
+}
+```
+
 ### Incident record
 
 ```js
 {
-  id:          string,    // internal UID (unique)
-  ticketNo:    string,    // human-readable, e.g. "INC00001"
   type:        "incident",
-  title:       string,
-  description: string,
-  category:    string,    // one of INC_CATEGORIES
-  service:     string,    // one of settings.services
-  impact:      "High" | "Medium" | "Low",
-  urgency:     "High" | "Medium" | "Low",
-  priority:    "P1" | "P2" | "P3" | "P4",   // auto-derived
   status:      "New" | "Assigned" | "In Progress" | "On Hold"
              | "Resolved" | "Closed" | "Cancelled",
   reporter:    string,
-  assignee:    string,
   resolution:  string,
-  createdAt:   ISO 8601 string,
-  updatedAt:   ISO 8601 string,
   resolvedAt:  ISO 8601 string | null,
-  closedAt:    ISO 8601 string | null,
-  workNotes:   { at: ISO string, by: string, note: string }[]
 }
 ```
 
@@ -192,28 +232,50 @@ The value is a JSON string containing the full app state (incidents, requests, a
 
 ```js
 {
-  id:                string,
-  ticketNo:          string,    // "REQ00001"
   type:              "request",
-  title:             string,
-  description:       string,
   requestType:       "Access" | "Hardware" | "Software" | "Information" | "Change" | "Other",
-  category:          string,    // one of REQ_CATEGORIES
-  service:           string,
-  impact:            "High" | "Medium" | "Low",
-  urgency:           "High" | "Medium" | "Low",
-  priority:          "P1" | "P2" | "P3" | "P4",
   status:            "New" | "Pending Approval" | "Approved" | "In Progress"
                    | "On Hold" | "Fulfilled" | "Rejected" | "Closed",
   requester:         string,
-  assignee:          string,
   approver:          string,
   fulfillmentNotes:  string,
-  createdAt:         ISO 8601 string,
-  updatedAt:         ISO 8601 string,
   fulfilledAt:       ISO 8601 string | null,
-  closedAt:          ISO 8601 string | null,
-  workNotes:         { at: ISO string, by: string, note: string }[]
+}
+```
+
+### Problem record
+
+```js
+{
+  type:              "problem",
+  status:            "New" | "Under Investigation" | "Root Cause Identified"
+                   | "Known Error" | "On Hold" | "Resolved" | "Closed",
+  reporter:          string,
+  rootCause:         string,
+  workaround:        string,
+  knownError:        string,
+  resolution:        string,
+  resolvedAt:        ISO 8601 string | null
+}
+```
+
+### Change record
+
+```js
+{
+  type:                "change",
+  status:              "Draft" | "Pending Approval" | "Approved" | "Scheduled"
+                     | "Implementation" | "Review" | "Completed"
+                     | "Rejected" | "Cancelled",
+  requester:           string,
+  approver:            string,
+  changeType:          "Standard" | "Normal" | "Emergency",
+  reason:              string,
+  implementationPlan:  string,
+  backoutPlan:         string,
+  testPlan:            string,
+  implementationSummary: string,
+  completedAt:         ISO 8601 string | null
 }
 ```
 
@@ -241,15 +303,28 @@ The derived priority is displayed as a read-only pill in the ticket form. Users 
 {
   "incidents": [ /* full incident records */ ],
   "requests":  [ /* full request records */ ],
-  "settings":  { "theme": "...", "services": [...], "incCounter": N, "reqCounter": N },
+  "problems":  [ /* full problem records */ ],
+  "changes":   [ /* full change records */ ],
+  "settings":  {
+    "theme": "...",
+    "services": [...],
+    "assignmentGroups": [...],
+    "operatorName": "...",
+    "incCounter": N,
+    "reqCounter": N,
+    "prbCounter": N,
+    "chgCounter": N,
+    "slaPolicy": { "P1": { "responseHours": N, "resolutionHours": N } },
+    "savedViews": [ /* per-register saved filters */ ]
+  },
   "exportedAt": "2026-04-24T10:15:00.000Z",
-  "version": 1
+  "version": 3
 }
 ```
 
 **Import (Replace)** — overwrites the entire local state with the imported file. Prompts for confirmation.
 
-**Import (Merge)** — adds only records whose `id` is not already present locally. Useful for combining two people's registers without losing either side's data. Does not update records that already exist — if you need to update, use Replace or do a manual edit.
+**Import (Merge)** — adds only records whose `id` is not already present locally. Useful for combining two people's registers without losing either side's data. Merge also recalculates the next `INC`, `REQ`, `PRB`, and `CHG` counters so future ticket numbers remain unique.
 
 ---
 
@@ -259,9 +334,13 @@ The derived priority is displayed as a read-only pill in the ticket form. Users 
 |---|---|
 | `I` | Raise a new incident |
 | `R` | Submit a new service request |
+| `P` | Raise a new problem |
+| `C` | Raise a new change request |
 | `1` | Go to Dashboard |
 | `2` | Go to Incidents |
 | `3` | Go to Service Requests |
+| `4` | Go to Problems |
+| `5` | Go to Changes |
 | `Esc` | Close the open ticket drawer |
 | `Enter` (in work notes input) | Add the work note |
 
@@ -394,7 +473,7 @@ Requires JavaScript, `localStorage`, and CSS Grid. No IE support.
 
 ## Privacy & Security
 
-- **No data leaves your browser.** There are no network requests after the initial CDN load (React, ReactDOM, Babel, DM Sans font).
+- **No data leaves your browser.** There are no network requests after the initial CDN load except the CDN-hosted UI assets (React, ReactDOM, Babel, and fonts).
 - **No analytics, no telemetry, no tracking.** The file is inert HTML.
 - **No authentication.** Anyone who can open the file can read and edit the local store. If the machine is shared, consider using a per-user browser profile.
 - **localStorage is readable** by other scripts running on the same origin. If you host this somewhere, do not load any untrusted third-party scripts on the same URL.
@@ -417,12 +496,12 @@ The JSON files are plain text and diff cleanly in Git if you want to version-con
 ## Known Limitations
 
 - **Single-user per browser.** No real-time multi-user sync.
-- **No file attachments.** Only text fields are stored.
+- **No binary attachments.** The app stores link/reference evidence only.
 - **No email notifications.** There is no server to send from.
-- **No reporting beyond the Dashboard.** Export JSON to Excel / Python / BI tool for deeper analysis.
-- **No audit log beyond work notes.** Deleting a ticket is permanent.
+- **Reporting is lightweight.** Dashboard plus CSV export, but no dedicated analytics module.
+- **No true multi-user audit identity.** Activity logs are local and rely on the configured operator name.
 - **No role-based permissions.** Everyone who has the file can do everything.
-- **Approval is capture-only.** There is no workflow gating on the Approver field — it's a text field for record-keeping.
+- **Approval is still lightweight.** Status guardrails exist, but there is no CAB engine or approval inbox.
 - **Storage quota.** ~5 MB per origin. Enough for tens of thousands of tickets, but keep an eye on it if you paste huge descriptions.
 
 ---
@@ -431,8 +510,10 @@ The JSON files are plain text and diff cleanly in Git if you want to version-con
 
 | Version | Date | Notes |
 |---|---|---|
-| 1.0 | 2026-04-24 | Initial release — Dashboard, Incidents, Service Requests, Settings. ITIL-aligned field set, 3×3 priority matrix, work-notes timeline, JSON import/export (Replace + Merge), three themes (Light / Dark / Soft Dark). Single-file HTML build. |
-| 1.1 | 2026-04-24 | Source split into `index.html` / `styles.css` / `app.jsx` for easier customisation. Added `.nojekyll` and `.gitignore` for GitHub Pages deployment. Functionality and data format unchanged — 1.0 exports import cleanly into 1.1. |
+| 1.0 | 2026-04-24 | Initial release — Dashboard, Incidents, Service Requests, Settings. |
+| 1.1 | 2026-04-24 | Source split into `index.html` / `styles.css` / `app.jsx` for easier customisation. |
+| 2.0 | 2026-04-26 | Added SLA targets, breach indicators, assignment groups, audit activity, evidence links, saved views, CSV export, and improved 2050 UI/typography. |
+| 3.0 | 2026-04-26 | Added first-class Problem and Change ticket types, new counters `PRB`/`CHG`, ITIL-lite workflows, linked-ticket relationships, expanded dashboard coverage, and four-register import/export compatibility. |
 
 ---
 
