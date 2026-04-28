@@ -185,7 +185,36 @@ const safeDate=(d)=>{const dt=new Date(d);return Number.isNaN(dt.getTime())?null
 const humanAge=(d)=>{const dt=safeDate(d);if(!dt)return"—";const hrs=(Date.now()-dt.getTime())/36e5;return hrs<24?`${Math.max(0,Math.round(hrs))}h`:`${Math.max(0,Math.round(hrs/24))}d`;};
 const toDateTimeLocal=(iso)=>{const dt=safeDate(iso);if(!dt)return"";const local=new Date(dt.getTime()-dt.getTimezoneOffset()*60000);return local.toISOString().slice(0,16);};
 const fromDateTimeLocal=(value)=>value?new Date(value).toISOString():"";
+const toDateInputValue=(iso)=>{const dt=safeDate(iso);if(!dt)return"";const local=new Date(dt.getTime()-dt.getTimezoneOffset()*60000);return local.toISOString().slice(0,10);};
+const toTimeInputValue=(iso)=>{const dt=safeDate(iso);if(!dt)return"09:00";const local=new Date(dt.getTime()-dt.getTimezoneOffset()*60000);return local.toISOString().slice(11,16);};
+const combineDateAndTime=(dateValue,timeValue,existingIso)=>{
+  if(!dateValue)return "";
+  const fallbackTime=toTimeInputValue(existingIso);
+  const [year,month,day]=dateValue.split("-").map(Number);
+  const [hours,minutes]=(timeValue||fallbackTime||"09:00").split(":").map(Number);
+  return new Date(year,month-1,day,hours||0,minutes||0,0,0).toISOString();
+};
+const monthLabel=(dt)=>dt.toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+const weekdayNames=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const addHoursIso=(baseIso,hours)=>{const dt=safeDate(baseIso)||new Date();return new Date(dt.getTime()+Number(hours||0)*36e5).toISOString();};
+const isWeekend=(dt)=>[0,6].includes(dt.getDay());
+const moveToNextWeekday=(dt)=>{const next=new Date(dt);while(isWeekend(next))next.setDate(next.getDate()+1);return next;};
+const addWeekdayHoursIso=(baseIso,hours)=>{
+  let current=safeDate(baseIso)||new Date();
+  let remainingMs=Math.max(0,Number(hours||0))*36e5;
+  if(!remainingMs)return current.toISOString();
+  while(remainingMs>0){
+    if(isWeekend(current)){current=moveToNextWeekday(current);continue;}
+    const nextBoundary=new Date(current);
+    nextBoundary.setHours(24,0,0,0);
+    const availableMs=nextBoundary.getTime()-current.getTime();
+    const step=Math.min(remainingMs,availableMs);
+    current=new Date(current.getTime()+step);
+    remainingMs-=step;
+  }
+  if(isWeekend(current))current=moveToNextWeekday(current);
+  return current.toISOString();
+};
 const nextTicketCounter=(records,prefix)=>records.reduce((highest,r)=>{const match=typeof r.ticketNo==="string"&&r.ticketNo.match(new RegExp(`^${prefix}(\\d+)$`));return match?Math.max(highest,Number(match[1])):highest;},0)+1;
 const getTypeConfig=(type)=>TICKET_TYPES[type]||TICKET_TYPES.incident;
 const getActor=(rec,settings)=>rec.assignee||rec.assignmentGroup||settings.operatorName||"System";
@@ -194,7 +223,7 @@ const copyFilters=(filters)=>JSON.parse(JSON.stringify(filters));
 const isMeaningfulChange=(a,b)=>(a||"")!==(b||"");
 const ensureArray=(v)=>Array.isArray(v)?v:[];
 const sanitizeLinks=(links)=>[...new Set(ensureArray(links).map(x=>String(x||"").trim().toUpperCase()).filter(Boolean))];
-const getSlaTargets=(priority,settings,createdAt)=>{const policy=(settings.slaPolicy||DEFAULT_SLA_POLICY)[priority]||DEFAULT_SLA_POLICY.P3;return{responseDueAt:addHoursIso(createdAt||nowIso(),policy.responseHours),resolutionDueAt:addHoursIso(createdAt||nowIso(),policy.resolutionHours)};};
+const getSlaTargets=(priority,settings,createdAt)=>{const policy=(settings.slaPolicy||DEFAULT_SLA_POLICY)[priority]||DEFAULT_SLA_POLICY.P3;return{responseDueAt:addWeekdayHoursIso(createdAt||nowIso(),policy.responseHours),resolutionDueAt:addWeekdayHoursIso(createdAt||nowIso(),policy.resolutionHours)};};
 const ensureEvidence=(evidence)=>Array.isArray(evidence)?evidence.filter(Boolean).map(item=>({id:item.id||newId(),label:item.label||item.reference||item.url||"Reference",url:item.url||"",reference:item.reference||item.label||""})):[];
 const ensureActivityLog=(log)=>Array.isArray(log)?log.filter(Boolean).map(item=>({id:item.id||newId(),at:item.at||nowIso(),action:item.action||"update",note:item.note||"",meta:item.meta||{}})):[];
 const ensureWorkNotes=(notes)=>Array.isArray(notes)?notes.filter(Boolean).map(item=>({at:item.at||nowIso(),by:item.by||"System",note:item.note||""})):[];
@@ -349,7 +378,98 @@ function BreachPill({record,theme}){
   const suffix=meta.targetAt?` · ${meta.phase}`:"";
   return <span className="pill" style={{background:style.bg,color:style.text,border:`1px solid ${style.border}`}}>{meta.label}{suffix}</span>;
 }
-function DateTimeInput({t,value,onChange}){return <input className="input" type="datetime-local" value={toDateTimeLocal(value)} onChange={e=>onChange(fromDateTimeLocal(e.target.value))} style={{background:t.inputBg,borderColor:t.inputBorder,color:t.text}}/>;}
+function DateTimeInput({t,value,onChange,onOpenChange}){
+  const [open,setOpen]=useState(false);
+  const [month,setMonth]=useState(()=>{const base=safeDate(value)||new Date();return new Date(base.getFullYear(),base.getMonth(),1);});
+  const wrapRef=useRef(null);
+  const popRef=useRef(null);
+  const selected=safeDate(value);
+
+  useEffect(()=>{if(selected)setMonth(new Date(selected.getFullYear(),selected.getMonth(),1));},[value]);
+  useEffect(()=>{onOpenChange?.(open);return()=>onOpenChange?.(false);},[open,onOpenChange]);
+  useEffect(()=>{
+    if(!open)return;
+    const onDocClick=(e)=>{if(wrapRef.current?.contains(e.target)||popRef.current?.contains(e.target))return;setOpen(false);};
+    const onEsc=(e)=>{if(e.key==="Escape")setOpen(false);};
+    document.addEventListener("mousedown",onDocClick);
+    document.addEventListener("keydown",onEsc);
+    return()=>{
+      document.removeEventListener("mousedown",onDocClick);
+      document.removeEventListener("keydown",onEsc);
+    };
+  },[open]);
+
+  const firstOfMonth=new Date(month.getFullYear(),month.getMonth(),1);
+  const firstWeekday=(firstOfMonth.getDay()+6)%7;
+  const daysInMonth=new Date(month.getFullYear(),month.getMonth()+1,0).getDate();
+  const cells=[];
+  for(let i=0;i<firstWeekday;i++)cells.push(null);
+  for(let day=1;day<=daysInMonth;day++)cells.push(new Date(month.getFullYear(),month.getMonth(),day));
+  while(cells.length%7!==0)cells.push(null);
+
+  const selectedDateValue=toDateInputValue(value);
+  const selectedTimeValue=toTimeInputValue(value);
+  const chooseDay=(dt)=>{
+    const picked=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+    onChange(combineDateAndTime(picked,selectedTimeValue,value));
+  };
+  const updateTime=(timeValue)=>onChange(combineDateAndTime(selectedDateValue||toDateInputValue(nowIso()),timeValue,value));
+  const jumpNow=()=>onChange(nowIso());
+
+  return(
+    <div className="date-wrap" ref={wrapRef}>
+      <button type="button" className="input" onClick={()=>setOpen(v=>!v)} style={{background:t.inputBg,borderColor:t.inputBorder,color:t.text,textAlign:"left",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,cursor:"pointer"}}>
+        <span className="ui-time" style={{color:value?t.text:t.textFaint}}>{value?fmtDateTime(value):"Select due date & time"}</span>
+        <span style={{color:t.accent,fontSize:15}}>🗓</span>
+      </button>
+      {open&&(
+        <div ref={popRef} className="date-pop" style={{background:t.dpBg,border:`1px solid ${t.cardBorder}`,color:t.dpText}}>
+          <div className="dp-nav">
+            <button type="button" className="btn btn-ghost" onClick={()=>setMonth(m=>new Date(m.getFullYear(),m.getMonth()-1,1))} style={{color:t.text,borderColor:t.cardBorder,padding:"8px 12px"}}>←</button>
+            <div className="ui-section" style={{color:t.text}}>{monthLabel(month)}</div>
+            <button type="button" className="btn btn-ghost" onClick={()=>setMonth(m=>new Date(m.getFullYear(),m.getMonth()+1,1))} style={{color:t.text,borderColor:t.cardBorder,padding:"8px 12px"}}>→</button>
+          </div>
+          <div className="dp-hdr">
+            {weekdayNames.map(name=><div key={name} className="dp-hdr-cell" style={{color:t.textMuted}}>{name}</div>)}
+          </div>
+          <div className="dp-grid">
+            {cells.map((dt,idx)=>{
+              if(!dt)return <div key={`blank-${idx}`} className="dp-day" />;
+              const isSelected=selected&&dt.getFullYear()===selected.getFullYear()&&dt.getMonth()===selected.getMonth()&&dt.getDate()===selected.getDate();
+              const weekend=isWeekend(dt);
+              return(
+                <button
+                  key={dt.toISOString()}
+                  type="button"
+                  className="dp-day"
+                  onClick={()=>chooseDay(dt)}
+                  style={{
+                    border:"none",
+                    background:isSelected?t.accent:(weekend?t.hover:"transparent"),
+                    color:isSelected?t.accentText:(weekend?t.textMuted:t.text),
+                    fontWeight:isSelected?700:500
+                  }}
+                >
+                  {dt.getDate()}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{padding:"10px 12px 14px",borderTop:`1px solid ${t.cardBorder}`,display:"grid",gap:10}}>
+            <div>
+              <Label t={t}>Time</Label>
+              <Input t={t} type="time" value={selectedTimeValue} onChange={e=>updateTime(e.target.value)} />
+            </div>
+            <div style={{display:"flex",gap:8,justifyContent:"space-between"}}>
+              <Btn t={t} type="button" variant="ghost" onClick={jumpNow}>Now</Btn>
+              <Btn t={t} type="button" onClick={()=>setOpen(false)}>Done</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 function Input({t,...p}){return <input className="input" style={{background:t.inputBg,borderColor:t.inputBorder,color:t.text}} {...p}/>;}
 function Textarea({t,...p}){return <textarea className="textarea" style={{background:t.inputBg,borderColor:t.inputBorder,color:t.text}} {...p}/>;}
 function Select({t,options,value,onChange,...p}){return(<select className="select" value={value} onChange={onChange} style={{background:t.inputBg,borderColor:t.inputBorder,color:t.text}} {...p}>{options.map(o=>typeof o==="string"?<option key={o} value={o}>{o}</option>:<option key={o.value} value={o.value}>{o.label}</option>)}</select>);}
@@ -363,6 +483,7 @@ function Drawer({record,onClose,onSave,onDelete,theme,settings}){
   const [newNote,setNewNote]=useState("");
   const [evidenceDraft,setEvidenceDraft]=useState({label:"",url:"",reference:""});
   const [linkedDraft,setLinkedDraft]=useState("");
+  const [slaPickerOpen,setSlaPickerOpen]=useState(false);
   const cfg=getTypeConfig(r.type);
   const isNew=!record.ticketNo;
 
@@ -605,7 +726,7 @@ function Drawer({record,onClose,onSave,onDelete,theme,settings}){
             </div>
 
             <div className="drawer-side">
-              <div className="card" style={{background:t.bg,borderColor:t.cardBorder,padding:14}}>
+              <div className="card" style={{background:t.bg,borderColor:t.cardBorder,padding:14,position:"relative",zIndex:slaPickerOpen?40:1,overflow:"visible"}}>
                 <div className="drawer-panel-title">
                   <div>
                     <div className="ui-section" style={{fontSize:12,color:t.text}}>SLA Targets</div>
@@ -614,8 +735,8 @@ function Drawer({record,onClose,onSave,onDelete,theme,settings}){
                   <Btn t={t} type="button" variant="ghost" onClick={resetDueDates}>Auto from Policy</Btn>
                 </div>
                 <div className="drawer-stack">
-                  <div><Label t={t}>Response Due</Label><DateTimeInput t={t} value={r.responseDueAt} onChange={value=>updateDue("responseDueAt",value)}/></div>
-                  <div><Label t={t}>Resolution Due</Label><DateTimeInput t={t} value={r.resolutionDueAt} onChange={value=>updateDue("resolutionDueAt",value)}/></div>
+                  <div><Label t={t}>Response Due</Label><DateTimeInput t={t} value={r.responseDueAt} onChange={value=>updateDue("responseDueAt",value)} onOpenChange={setSlaPickerOpen}/></div>
+                  <div><Label t={t}>Resolution Due</Label><DateTimeInput t={t} value={r.resolutionDueAt} onChange={value=>updateDue("resolutionDueAt",value)} onOpenChange={setSlaPickerOpen}/></div>
                 </div>
               </div>
 
@@ -687,7 +808,7 @@ function Register({records,type,theme,onOpen,onNew,settings,presetKey,onSaveView
   const t=theme;const cfg=getTypeConfig(type);const [filters,setFilters]=useState(applyPresetToFilters(presetKey));const savedViews=(settings.savedViews||[]).filter(view=>view.type===type);
   useEffect(()=>{setFilters(applyPresetToFilters(presetKey));},[presetKey,type]);
   const applySavedView=(id)=>{const found=savedViews.find(view=>view.id===id);if(found)setFilters(copyFilters(found.filters));};
-  const filtered=useMemo(()=>{let rows=records.filter(r=>r.type===type);rows=rows.filter(r=>recordMatchesPreset(r,filters.preset,settings.operatorName));if(filters.q){const qq=filters.q.toLowerCase();rows=rows.filter(r=>(r.title||"").toLowerCase().includes(qq)||(r.ticketNo||"").toLowerCase().includes(qq)||(r.description||"").toLowerCase().includes(qq)||(r.assignee||"").toLowerCase().includes(qq)||((r.reporter||r.requester||"").toLowerCase().includes(qq))||(r.assignmentGroup||"").toLowerCase().includes(qq)||(r.linkedTickets||[]).some(x=>x.toLowerCase().includes(qq)));}if(filters.status!=="All")rows=rows.filter(r=>r.status===filters.status);if(filters.priority!=="All")rows=rows.filter(r=>r.priority===filters.priority);if(filters.breach!=="All")rows=rows.filter(r=>getBreachMeta(r).state===filters.breach);return rows.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));},[records,type,filters,settings.operatorName]);
+  const filtered=useMemo(()=>{let rows=records.filter(r=>r.type===type);if(filters.status==="All")rows=rows.filter(r=>recordMatchesPreset(r,filters.preset,settings.operatorName));if(filters.q){const qq=filters.q.toLowerCase();rows=rows.filter(r=>(r.title||"").toLowerCase().includes(qq)||(r.ticketNo||"").toLowerCase().includes(qq)||(r.description||"").toLowerCase().includes(qq)||(r.assignee||"").toLowerCase().includes(qq)||((r.reporter||r.requester||"").toLowerCase().includes(qq))||(r.assignmentGroup||"").toLowerCase().includes(qq)||(r.linkedTickets||[]).some(x=>x.toLowerCase().includes(qq)));}if(filters.status!=="All")rows=rows.filter(r=>r.status===filters.status);if(filters.priority!=="All")rows=rows.filter(r=>r.priority===filters.priority);if(filters.breach!=="All")rows=rows.filter(r=>getBreachMeta(r).state===filters.breach);return rows.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));},[records,type,filters,settings.operatorName]);
   return(
     <div style={{padding:"20px 28px",height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>

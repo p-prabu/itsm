@@ -215,8 +215,8 @@ select option{background:#0f1527;color:#eef4ff}
 }
 .date-wrap{position:relative}
 .date-pop{
-  position:fixed;z-index:9999;border-radius:20px;overflow:hidden;box-shadow:0 22px 60px rgba(0,0,0,0.38);
-  min-width:290px;backdrop-filter:blur(22px) saturate(140%)
+  position:absolute;top:calc(100% + 8px);right:0;z-index:1200;border-radius:20px;overflow:hidden;box-shadow:0 22px 60px rgba(0,0,0,0.38);
+  min-width:290px;max-width:min(340px,calc(100vw - 32px));width:320px;backdrop-filter:blur(22px) saturate(140%)
 }
 .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:8px}
 .dp-day{padding:8px 4px;text-align:center;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500}

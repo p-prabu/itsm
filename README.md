@@ -3,6 +3,10 @@
 > A self-contained, offline-first ITIL-aligned register for Incidents, Service Requests, Problems, and Changes.
 > Source is split into HTML / CSS / JSX for easy customisation. Data stays in your browser — no backend.
 
+**Current release:** `3.1.0`
+  
+**Schema export version:** `3`
+
 ---
 
 ## Table of Contents
@@ -22,7 +26,7 @@
 13. [Privacy & Security](#privacy--security)
 14. [Backup & Portability](#backup--portability)
 15. [Known Limitations](#known-limitations)
-16. [Version History](#version-history)
+16. [Changelog](#changelog)
 
 ---
 
@@ -66,6 +70,7 @@ The app implements the core ITIL 4 distinction across four practical ticket type
 | Categories | Incident, Request, Problem, and Change each have dedicated category lists in `app.jsx`. |
 | Services (CI list) | User-editable list in Settings |
 | Ticket relationships | Manual linked ticket references by ticket number (e.g. `INC00012`, `PRB00003`) |
+| SLA target calculation | Automatic SLA targets count weekdays only; Saturday and Sunday are skipped |
 
 What's intentionally **not** included (out of scope for a lightweight single-file tool):
 - Knowledge / Release processes
@@ -83,7 +88,7 @@ What's intentionally **not** included (out of scope for a lightweight single-fil
 | UI Framework | React | 18 (UMD) | Component-based UI rendering |
 | JSX Transpiler | Babel Standalone | Latest | Transpiles JSX in the browser at runtime |
 | Styling | React inline styles + CSS variables | — | Theme-aware surfaces with shared typography classes |
-| Global CSS | `styles.css` | — | Layout, effects, table styling, drawer, futuristic theme |
+| Global CSS | `styles.css` | — | Layout, effects, table styling, fullscreen editor, futuristic theme |
 | Fonts | Google Fonts (Orbitron, Space Grotesk, JetBrains Mono) | — | Display, UI, and data typography roles |
 | Storage | `localStorage` | Browser native | Persistent data storage, no server needed |
 | Data Interchange | JSON | — | Export / Import for backup and portability |
@@ -99,7 +104,7 @@ ITSM Register follows a **single-page application (SPA)** pattern with all logic
 ```
 ITSM/
 ├── index.html        — Page shell: CDN script tags, stylesheet link, #root div, app.jsx
-├── styles.css        — Global CSS (reset, pills, buttons, drawer, date picker, table)
+├── styles.css        — Global CSS (reset, pills, buttons, fullscreen editor, custom date picker, table)
 ├── app.jsx           — All React code, transpiled in-browser by Babel Standalone
 │   ├── Constants         — THEMES, CATEGORIES, STATUSES, PRIORITY_MATRIX, SERVICES
 │   ├── Helpers           — date formatting, ID/ticket-number generation, priority calc
@@ -107,10 +112,10 @@ ITSM/
 │   │   saveState
 │   ├── PriorityPill      — coloured P1–P4 badge
 │   ├── StatusPill        — coloured status badge
-│   ├── DatePicker        — custom calendar component
+│   ├── DateTimeInput     — custom SLA calendar + time picker
 │   ├── Input / Select /  — themed form primitives
 │   │   Textarea / Btn
-│   ├── Drawer            — slide-in form for create/edit
+│   ├── Drawer            — fullscreen overlay workspace for create/edit
 │   ├── Register          — table view with search, preset filters, saved views, SLA state
 │   ├── Dashboard         — KPI stats, priority bars, recent activity
 │   ├── Settings          — theme, services catalog, import/export, clear/reset
@@ -293,6 +298,8 @@ Priority is computed automatically whenever Impact or Urgency changes, using the
 
 The derived priority is displayed as a read-only pill in the ticket form. Users cannot override it directly — they adjust Impact and Urgency, and priority follows.
 
+Automatic SLA targets are derived from the configured priority policy using **weekday-only elapsed hours**. Hours that fall on Saturday or Sunday are skipped when the app calculates `responseDueAt` and `resolutionDueAt`.
+
 ---
 
 ## Import / Export Format
@@ -341,7 +348,7 @@ The derived priority is displayed as a read-only pill in the ticket form. Users 
 | `3` | Go to Service Requests |
 | `4` | Go to Problems |
 | `5` | Go to Changes |
-| `Esc` | Close the open ticket drawer |
+| `Esc` | Close the open ticket editor |
 | `Enter` (in work notes input) | Add the work note |
 
 Shortcuts are suppressed while typing inside an input, textarea, or select, so you can still type letters like `i` and `r` in any field.
@@ -506,14 +513,12 @@ The JSON files are plain text and diff cleanly in Git if you want to version-con
 
 ---
 
-## Version History
+## Changelog
 
-| Version | Date | Notes |
-|---|---|---|
-| 1.0 | 2026-04-24 | Initial release — Dashboard, Incidents, Service Requests, Settings. |
-| 1.1 | 2026-04-24 | Source split into `index.html` / `styles.css` / `app.jsx` for easier customisation. |
-| 2.0 | 2026-04-26 | Added SLA targets, breach indicators, assignment groups, audit activity, evidence links, saved views, CSV export, and improved 2050 UI/typography. |
-| 3.0 | 2026-04-26 | Added first-class Problem and Change ticket types, new counters `PRB`/`CHG`, ITIL-lite workflows, linked-ticket relationships, expanded dashboard coverage, and four-register import/export compatibility. |
+Release history now lives in [CHANGELOG.md](/Users/prabuponnan/Documents/Claude/ITSM/CHANGELOG.md).
+
+Latest release:
+- `3.1.0` — fullscreen ticket editor, weekday-only SLA calculation, custom SLA calendar/time picker, approval KPI drill-down fix, terminal timestamp fix, and corrected status filtering for closed/resolved queues.
 
 ---
 

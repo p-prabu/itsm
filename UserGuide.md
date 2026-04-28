@@ -2,6 +2,8 @@
 
 > A friendly, practical guide to using the ITSM Register — no ITIL certification required.
 
+**Current release:** `3.1.0`
+
 ---
 
 ## Table of Contents
@@ -119,7 +121,7 @@ No account to create. No password. Just use it.
 
 3. Click **Raise Incident**. A ticket number like `INC00001` is assigned automatically and the ticket appears in the Incidents register.
 
-The app also calculates **response due** and **resolution due** targets from the ticket priority. If needed, these can be manually adjusted later in the drawer.
+The app also calculates **response due** and **resolution due** targets from the ticket priority. These automatic targets count **weekdays only** — Saturday and Sunday are skipped. If needed, they can still be manually adjusted later in the editor.
 
 ---
 
@@ -299,7 +301,7 @@ The matrix:
 
 ## Working a ticket
 
-Click any ticket in any register to open the drawer.
+Click any ticket in any register to open the fullscreen editor.
 
 You can:
 
@@ -311,6 +313,8 @@ You can:
 - **Review activity history** — status changes, assignment updates, SLA edits, evidence changes, and reopen events are logged automatically.
 - **Fill in Resolution / Fulfillment / Implementation fields** — capture what actually fixed it, delivered it, or changed it.
 - **Delete** the ticket — permanent, no undo. Use with care; usually you want Cancelled or Closed instead.
+
+For SLA fields, the app uses a built-in calendar and time picker instead of the browser’s default datetime control.
 
 ---
 
@@ -361,7 +365,12 @@ For each priority `P1` to `P4`, you can configure:
 - **Response hours**
 - **Resolution hours**
 
-New tickets inherit these targets automatically. If a particular ticket needs an exception, its due dates can be overridden in the drawer.
+New tickets inherit these targets automatically. If a particular ticket needs an exception, its due dates can be overridden in the editor.
+
+Important:
+- automatic SLA targets count **weekdays only**
+- weekends are skipped
+- manual SLA overrides are still allowed per ticket
 
 ### Data — Export / Import
 
@@ -424,7 +433,7 @@ If you need more than 3–5 people editing in real time, you've outgrown a singl
 | `3` | Go to Service Requests |
 | `4` | Go to Problems |
 | `5` | Go to Changes |
-| `Esc` | Close the ticket drawer |
+| `Esc` | Close the ticket editor |
 | `Enter` (in work notes box) | Add the work note |
 
 Shortcuts are off while you're typing in any input, so normal typing still works.
@@ -492,5 +501,7 @@ Use Import (Replace) to overwrite with a known-good export, or Import (Merge) to
 | **Fulfillment** | The final answer on a service request — what was delivered. |
 
 ---
+
+Release history is available in [CHANGELOG.md](/Users/prabuponnan/Documents/Claude/ITSM/CHANGELOG.md).
 
 *Questions, ideas, or bugs? The code lives mainly in `app.jsx`, with `styles.css` and `index.html` supporting it. Open the files in any editor and tinker.*
